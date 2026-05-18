@@ -1,145 +1,711 @@
-# Knowledge Base di [Il tuo dominio] — Schema
+# AGENTS.md — LLM Wiki Maintainer
 
-## Scopo
+Questo repository implementa una knowledge base mantenuta da agenti LLM secondo il pattern **LLM Wiki**: le fonti grezze restano in `raw/`, mentre l'agente legge, sintetizza, collega e mantiene una wiki persistente in `wiki/`.
 
-<!-- PERSONALIZZA: Sostituisci questo testo con una descrizione in un paragrafo del tuo dominio di conoscenza. -->
-<!-- Esempi: "ricerca sul machine learning", "letteratura del XIX secolo", "panorama competitivo degli strumenti SaaS" -->
-Questa è una knowledge base mantenuta da un LLM su [IL TUO ARGOMENTO]. L'LLM scrive e mantiene tutti i file sotto `wiki/`. L'essere umano cura le fonti grezze e guida le query. L'essere umano non modifica mai direttamente i file wiki.
+L'obiettivo non è fare semplice RAG al momento della domanda. L'obiettivo è compilare conoscenza una volta, accumularla nel tempo, collegarla, segnalare contraddizioni e renderla interrogabile tramite file Markdown versionabili.
 
-## Struttura delle directory
+---
 
-- `raw/` — Documenti sorgente immutabili (trascrizioni, articoli, note). Non modificarli mai.
-- `wiki/index.md` — Catalogo principale. Ogni pagina wiki deve comparire qui.
-- `wiki/log.md` — Log attività append-only.
-- `wiki/summaries/` — Una pagina di riepilogo per ogni documento sorgente grezzo.
-- `wiki/concepts/` — Pagine di concetti, strategie e framework.
-- `wiki/entities/` — Pagine di entità (persone, strumenti, organizzazioni, prodotti — qualunque "cosa" esista nel tuo dominio).
-- `wiki/syntheses/` — Tabelle comparative, framework decisionali, analisi trasversali.
-- `wiki/journal/` — Voci di diario di ricerca o di sessione.
-- `wiki/presentations/` — Presentazioni Marp generate dal contenuto della wiki.
+## 1. Ruolo dell'agente
 
-## Nomenclatura dei file
+L'agente è il manutentore della wiki.
 
-- Tutto in minuscolo, trattini per separare le parole: `nome-concetto.md`
-- Nessuno spazio, nessun carattere speciale, nessuna maiuscola
-- Il nome deve corrispondere allo slug del titolo della pagina
+Deve:
 
-## Formato della pagina
+1. leggere fonti grezze in `raw/`;
+2. creare o aggiornare pagine strutturate in `wiki/`;
+3. mantenere link bidirezionali tra pagine correlate;
+4. aggiornare sempre `wiki/index.md` e `wiki/log.md` dopo modifiche alla wiki;
+5. rispondere alle domande usando prima la wiki, poi le fonti grezze solo se necessario;
+6. segnalare contraddizioni, incertezze e buchi conoscitivi;
+7. preferire aggiornamenti incrementali a duplicazioni.
 
-Ogni pagina wiki usa questo frontmatter e questa struttura:
+Non deve:
+
+1. modificare, riscrivere, rinominare o cancellare file in `raw/`;
+2. inventare fonti, date, autori o riferimenti;
+3. creare pagine duplicate per lo stesso concetto, entità o fonte;
+4. rispondere solo dalla memoria del modello quando esistono file wiki pertinenti;
+5. lasciare pagine isolate senza link in ingresso o in uscita, salvo eccezione motivata nel log.
+
+---
+
+## 2. Struttura del repository
+
+```text
+raw/                         # fonti grezze immutabili
+wiki/
+  index.md                   # catalogo principale della wiki
+  log.md                     # log append-only delle operazioni
+  overview.md                # sintesi viva dell'intera knowledge base
+  summaries/                 # una pagina di riepilogo per ogni fonte
+  concepts/                  # concetti, pattern, strategie, framework
+  entities/                  # persone, prodotti, strumenti, aziende, sistemi
+  syntheses/                 # confronti, decisioni, analisi trasversali
+  journal/                   # note di sessione o diario di ricerca
+  presentations/             # presentazioni Marp generate dalla wiki
+  _maintenance/              # report di lint, backlog, mapping, audit
+```
+
+Se una directory richiesta manca, crearla prima di procedere.
+
+---
+
+## 3. Invarianti obbligatori
+
+Queste regole valgono sempre.
+
+1. `raw/` è append-only e read-only per l'agente.
+2. Ogni modifica sotto `wiki/` deve produrre anche una voce in `wiki/log.md`.
+3. Ogni nuova pagina deve comparire in `wiki/index.md`.
+4. Ogni pagina deve contenere frontmatter YAML valido.
+5. Ogni pagina deve avere almeno una fonte in `sources`, salvo `index.md`, `log.md`, `overview.md` e report di manutenzione.
+6. Ogni pagina deve avere almeno un link wiki verso un'altra pagina, quando esistono pagine correlate.
+7. Se una pagina cita una fonte, la fonte deve esistere davvero in `raw/` oppure essere dichiarata come fonte esterna con URL verificabile.
+8. Le affermazioni non supportate da fonti devono essere marcate come `confidence: low` o spostate in una sezione `## Open Questions`.
+9. Non creare una nuova pagina se una pagina esistente copre già lo stesso concetto o la stessa entità: aggiorna quella esistente.
+10. Prima di scrivere, controlla sempre `wiki/index.md` e cerca pagine esistenti correlate.
+
+---
+
+## 4. Comandi riconosciuti
+
+Gli agenti devono interpretare sia comandi espliciti sia linguaggio naturale.
+
+| Intento | Trigger tipici | Azione |
+|---|---|---|
+| Ingest | `ingest`, `importa`, `aggiungi fonte`, `processa raw/...` | Integra una o più fonti nella wiki |
+| Query | domanda generica, `cosa dice la wiki su...`, `riassumi...` | Rispondi usando wiki e fonti citate |
+| Lint | `lint`, `health check`, `controlla la wiki` | Verifica qualità, link, duplicati, contraddizioni |
+| Synthesis | `confronta`, `fammi una sintesi`, `decision matrix` | Crea o aggiorna una pagina in `wiki/syntheses/` se utile |
+| Graph | `build graph`, `mappa collegamenti`, `knowledge graph` | Genera o aggiorna report/link map in `_maintenance/` |
+| Presentation | `presentazione`, `slides`, `marp` | Crea una presentazione in `wiki/presentations/` basata sulla wiki |
+
+Se l'intento è ambiguo, scegli l'operazione più conservativa: leggere e rispondere senza modificare file. Modifica file solo quando il trigger implica chiaramente ingest, lint/fix, sintesi persistente o generazione artefatti.
+
+---
+
+## 5. Naming convention
+
+Usa sempre slug stabili.
+
+Regole:
+
+- minuscolo;
+- parole separate da trattini;
+- niente spazi;
+- niente caratteri speciali;
+- niente maiuscole;
+- rimuovi articoli non necessari;
+- mantieni acronimi in minuscolo nello slug, ma leggibili nel titolo.
+
+Esempi:
+
+```text
+wiki/concepts/retrieval-augmented-generation.md
+wiki/entities/openai.md
+wiki/summaries/attention-is-all-you-need.md
+wiki/syntheses/rag-vs-llm-wiki.md
+```
+
+Se due fonti generano lo stesso slug, aggiungi un suffisso breve e stabile, ad esempio anno o autore: `nome-fonte-2026.md`.
+
+---
+
+## 6. Frontmatter standard
+
+Ogni pagina wiki, esclusi `index.md` e `log.md`, deve iniziare così:
 
 ```yaml
 ---
-title: "Titolo Pagina"
-type: concept | entity | summary | synthesis
-tags: [tag1, tag2, tag3]
+title: "Titolo leggibile"
+type: concept | entity | summary | synthesis | journal | presentation | maintenance
+tags: [tag-1, tag-2]
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
-sources: ["raw/nomefile.txt"]
+sources:
+  - raw/percorso-fonte.md
 confidence: high | medium | low
+status: draft | stable | needs-review
 ---
 ```
 
-### Sezioni richieste per tipo di pagina
+Regole:
 
-**Pagine di riepilogo** (`wiki/summaries/`):
-- `## Key Points` — Elenco puntato delle principali affermazioni/idee
-- `## Relevant Concepts` — Link alle pagine concetto toccate da questa fonte
-- `## Source Metadata` — Tipo di fonte, autore/speaker, data, URL o identificatore
+- `created` non cambia mai dopo la creazione.
+- `updated` cambia a ogni modifica sostanziale.
+- `sources` deve contenere percorsi reali o URL verificabili.
+- `status: needs-review` quando ci sono contraddizioni, buchi informativi o dubbi.
+- `confidence` è una valutazione della pagina intera, non della singola frase.
 
-**Pagine concetto** (`wiki/concepts/`):
-- `## Definition` — Definizione in linguaggio semplice, in un paragrafo
-- `## How It Works` — Meccanica, processo o struttura del concetto
-- `## Key Parameters` — Variabili, dimensioni o fattori importanti
-- `## When To Use` — Situazioni e contesti in cui questo concetto si applica
-- `## Risks & Pitfalls` — Failure mode noti, errori comuni, limitazioni
-- `## Related Concepts` — Link wiki a pagine correlate
-- `## Sources` — Fonti grezze che informano questa pagina
+---
 
-**Pagine entità** (`wiki/entities/`):
-- `## Overview` — Che cos'è questa entità
-- `## Characteristics` — Proprietà, attributi e struttura chiave
-- `## Common Strategies` — Link a pagine concetto per strategie o metodi associati a questa entità
-- `## Related Entities` — Link a pagine entità correlate
+## 7. Tipi di pagina
 
-**Pagine di sintesi** (`wiki/syntheses/`):
-- `## Comparison` — Tabella o confronto strutturato
-- `## Analysis` — Insight trasversali
-- `## Recommendations` — Quando preferire quale approccio
-- `## Pages Compared` — Link a tutte le pagine coinvolte
+### 7.1 Summary — `wiki/summaries/`
 
-## Convenzioni di linking
+Una pagina summary rappresenta una fonte grezza.
 
-- Usa link wiki in stile Obsidian: `[[concepts/nome-concetto]]`
-- Usa sempre percorsi relativi dalla root della wiki
-- Ogni pagina deve linkare almeno un'altra pagina (nessuna pagina orfana)
-- Quando menzioni un concetto che ha una pagina, linkalo sempre
+Struttura obbligatoria:
 
-## Tassonomia dei tag
+```md
+## Source Metadata
+- Source: raw/...
+- Type: article | transcript | note | paper | ticket | email | doc | other
+- Author/Speaker:
+- Date:
+- URL/Identifier:
 
-<!-- PERSONALIZZA: Sostituisci queste categorie placeholder con tag rilevanti per il tuo dominio. -->
-<!-- Ogni categoria dovrebbe avere 3-8 tag specifici. -->
-<!-- Esempio per una KB di cucina: -->
-<!--   Cucina: italiana, giapponese, francese, messicana -->
-<!--   Tecnica: brasatura, fermentazione, sous-vide, griglia -->
-<!--   Ingrediente: proteina, verdura, cereale, latticino -->
+## Executive Summary
 
-- **Categoria-A**: `tag-1`, `tag-2`, `tag-3`
-- **Categoria-B**: `tag-4`, `tag-5`, `tag-6`
-- **Categoria-C**: `tag-7`, `tag-8`, `tag-9`
-- **Ambito**: `fondazionale`, `avanzato`, `sperimentale`
-- **Stato**: `ben-consolidato`, `emergente`, `speculativo`
+## Key Points
 
-## Livelli di confidenza
+## Extracted Concepts
 
-- **high** — Idea ben consolidata, più fonti corroboranti, dimostrata con esempi concreti
-- **medium** — Supportata da fonti ma con esempi limitati o da una singola fonte
-- **low** — Singola menzione, aneddotica o speculativa
+## Extracted Entities
 
-## Workflow
+## Important Quotes Or Evidence
 
-### Ingest
+## Contradictions Or Tensions
 
-Quando l'utente dice "ingest [fonte]" o aggiunge un file a `raw/`:
+## Open Questions
 
-1. Leggi completamente la fonte grezza
-2. Crea `wiki/summaries/<source-slug>.md` con un riepilogo completo
-3. Identifica tutti i concetti, le entità e le strategie menzionate
-4. Per ogni concetto/entità: crea la pagina se non esiste, oppure aggiornala con le nuove informazioni se esiste già
-5. Aggiungi cross-link in entrambe le direzioni tra tutte le pagine toccate
-6. Aggiorna `wiki/index.md` — aggiungi nuove voci, aggiorna i riepiloghi delle pagine modificate
-7. Aggiungi una voce a `wiki/log.md` con timestamp, nome della fonte, pagine create/aggiornate
-8. Segnala eventuali contraddizioni con il contenuto wiki esistente
+## Links
+```
 
-### Query
+Regole:
+
+- Non fare solo un riassunto breve: estrai conoscenza riutilizzabile.
+- Collega concetti ed entità con wikilink.
+- Se la fonte è lunga, conserva dettagli concreti, numeri, date, esempi e condizioni.
+
+---
+
+### 7.2 Concept — `wiki/concepts/`
+
+Una pagina concept descrive una singola idea, pattern, metodo, problema o strategia.
+
+Struttura obbligatoria:
+
+```md
+## Definition
+
+## Why It Matters
+
+## How It Works
+
+## Key Parameters
+
+## When To Use
+
+## Risks & Pitfalls
+
+## Examples
+
+## Related Concepts
+
+## Related Entities
+
+## Sources
+
+## Open Questions
+```
+
+Regole:
+
+- Un solo concetto per pagina.
+- Se la pagina supera circa 1.500 parole o contiene più concetti autonomi, dividi.
+- Quando aggiorni una pagina concept, integra la nuova fonte senza perdere le informazioni precedenti.
+
+---
+
+### 7.3 Entity — `wiki/entities/`
+
+Una pagina entity descrive una persona, azienda, prodotto, sistema, progetto, libreria, modello, repository o organizzazione.
+
+Struttura obbligatoria:
+
+```md
+## Overview
+
+## Characteristics
+
+## Timeline Or Versions
+
+## Capabilities
+
+## Limitations
+
+## Related Concepts
+
+## Related Entities
+
+## Sources
+
+## Open Questions
+```
+
+Regole:
+
+- Se l'entità evolve nel tempo, usa una sezione timeline/versioni.
+- Distingui fatti stabili, osservazioni contestuali e opinioni provenienti dalle fonti.
+
+---
+
+### 7.4 Synthesis — `wiki/syntheses/`
+
+Una synthesis combina più pagine o fonti.
+
+Struttura obbligatoria:
+
+```md
+## Question Or Decision
+
+## Short Answer
+
+## Comparison
+
+## Analysis
+
+## Recommendation
+
+## Trade-offs
+
+## Evidence
+
+## Pages Compared
+
+## Sources
+
+## Open Questions
+```
+
+Regole:
+
+- Crea synthesis quando la risposta richiede confronto, decisione o insight trasversale.
+- Non creare synthesis per ogni domanda banale.
+- Se la sintesi nasce durante una query, chiedi conferma prima di salvarla quando l'utente non ha chiesto modifiche persistenti.
+
+---
+
+### 7.5 Overview — `wiki/overview.md`
+
+`overview.md` è la sintesi viva dell'intera wiki.
+
+Deve contenere:
+
+```md
+## Scope
+
+## Current Mental Model
+
+## Major Concepts
+
+## Major Entities
+
+## Important Syntheses
+
+## Known Contradictions
+
+## Open Questions
+
+## Maintenance Notes
+```
+
+Aggiornala dopo ingest importanti o lint sostanziali.
+
+---
+
+## 8. Linking
+
+Usa wikilink Obsidian-style:
+
+```md
+[[concepts/nome-concetto]]
+[[entities/nome-entita]]
+[[summaries/nome-fonte]]
+[[syntheses/nome-sintesi]]
+```
+
+Regole:
+
+1. Usa percorsi relativi dalla root `wiki/`, senza `.md`.
+2. Quando menzioni un concetto o entità già esistente, linkalo.
+3. Quando crei una nuova pagina, aggiungi link anche dalle pagine correlate verso la nuova pagina.
+4. Le pagine summary devono linkare concept/entity estratti.
+5. Le pagine concept/entity devono linkare almeno una summary o fonte rilevante.
+6. Evita link generici irrilevanti solo per soddisfare la regola: i link devono avere valore semantico.
+
+---
+
+## 9. Index
+
+`wiki/index.md` è il catalogo operativo della wiki. Deve essere utile agli agenti prima ancora che agli umani.
+
+Struttura consigliata:
+
+```md
+# Wiki Index
+
+## Scope
+
+## Recently Updated
+
+## Summaries
+| Page | Source | Updated | Confidence | Notes |
+
+## Concepts
+| Page | Tags | Updated | Confidence | One-line Description |
+
+## Entities
+| Page | Tags | Updated | Confidence | One-line Description |
+
+## Syntheses
+| Page | Question/Decision | Updated | Confidence | Notes |
+
+## Open Questions
+
+## Maintenance Backlog
+```
+
+Regole:
+
+- Ogni pagina nuova o modificata deve aggiornare la rispettiva riga.
+- Le descrizioni devono essere brevi e concrete.
+- Non lasciare placeholder generici.
+
+---
+
+## 10. Log
+
+`wiki/log.md` è append-only. Non riscrivere vecchie voci salvo correzione di formattazione evidente.
+
+Formato obbligatorio:
+
+```md
+## YYYY-MM-DD HH:mm — <operation>
+
+- Trigger: richiesta utente o comando
+- Sources read:
+  - raw/...
+- Pages created:
+  - wiki/...
+- Pages updated:
+  - wiki/...
+- Contradictions found:
+  - ...
+- Open questions:
+  - ...
+- Notes:
+  - ...
+```
+
+Usa l'ora locale se disponibile, altrimenti solo la data ISO.
+
+---
+
+## 11. Workflow: Ingest
+
+Quando devi ingerire una fonte:
+
+### 11.1 Preflight
+
+1. Verifica che la fonte esista.
+2. Identifica tipo, nome, data, autore e URL se disponibili.
+3. Leggi `wiki/index.md` se esiste.
+4. Cerca pagine già esistenti correlate in `wiki/summaries/`, `wiki/concepts/`, `wiki/entities/`, `wiki/syntheses/`.
+5. Prepara una lista di pagine da creare e aggiornare.
+
+### 11.2 Lettura
+
+1. Leggi l'intera fonte quando possibile.
+2. Se la fonte è troppo grande, processala a blocchi mantenendo una lista cumulativa di fatti, concetti, entità, date, numeri, decisioni e incertezze.
+3. Non ignorare tabelle, esempi, errori, edge case, decisioni operative o riferimenti a versioni.
+
+### 11.3 Scrittura
+
+Ordine obbligatorio:
+
+1. crea o aggiorna la pagina summary;
+2. crea o aggiorna concept;
+3. crea o aggiorna entity;
+4. crea o aggiorna syntheses solo se emergono insight trasversali importanti;
+5. aggiorna link bidirezionali;
+6. aggiorna `wiki/overview.md` se l'informazione cambia il quadro generale;
+7. aggiorna `wiki/index.md`;
+8. appendi una voce a `wiki/log.md`.
+
+### 11.4 Output finale all'utente
+
+Alla fine dell'ingest, rispondi con:
+
+- fonti lette;
+- pagine create;
+- pagine aggiornate;
+- contraddizioni o dubbi;
+- prossime azioni consigliate.
+
+Non incollare l'intero contenuto delle pagine create, salvo richiesta esplicita.
+
+---
+
+## 12. Workflow: Query
 
 Quando l'utente fa una domanda:
 
-1. Leggi `wiki/index.md` per trovare le pagine rilevanti
-2. Leggi quelle pagine
-3. Sintetizza una risposta citando pagine specifiche con link wiki
-4. Se la risposta rivela un nuovo insight che vale la pena preservare:
-   - Crea una pagina di sintesi in `wiki/syntheses/`
-   - Aggiorna index e log
+1. Leggi `wiki/index.md`.
+2. Identifica pagine candidate.
+3. Leggi le pagine candidate.
+4. Se la wiki è insufficiente, leggi le fonti in `raw/` citate dalle pagine candidate.
+5. Rispondi citando le pagine wiki usate con wikilink.
+6. Distingui chiaramente:
+   - cosa è supportato dalla wiki;
+   - cosa è inferenza;
+   - cosa manca o è incerto.
+7. Non modificare file durante una query semplice, a meno che l'utente chieda di salvare la sintesi o la query riveli un problema di manutenzione critico.
 
-### Lint
+Formato risposta consigliato:
 
-Quando l'utente dice "lint" o "health check":
+```md
+## Risposta
 
-1. Leggi tutte le pagine wiki
-2. Controlla: pagine orfane (nessun link in ingresso), affermazioni obsolete, contraddizioni tra pagine, cross-link mancanti, sezioni incomplete, pagine a bassa confidenza che potrebbero essere rafforzate
-3. Correggi automaticamente ciò che può essere corretto
-4. Segnala i problemi che richiedono giudizio umano
-5. Suggerisci nuove fonti o argomenti da investigare
-6. Aggiorna il log
+...
 
-## Regole
+## Evidenza usata
+- [[concepts/...]]
+- [[entities/...]]
+- [[summaries/...]]
 
-- Non modificare mai i file in `raw/`
-- Aggiorna sempre `index.md` e `log.md` dopo ogni modifica alla wiki
-- Preferisci aggiornare pagine esistenti invece di creare duplicati
-- In caso di dubbio su un'affermazione, imposta la confidenza a "low" e annota l'incertezza
-- Mantieni le pagine focalizzate — un concetto per pagina, separa la pagina se diventa troppo lunga
-- Usa linguaggio semplice — definisci il gergo al primo utilizzo in ogni pagina
-- Tutte le date in formato ISO 8601: YYYY-MM-DD
-- Quando una fonte fornisce esempi specifici, includili con dettagli concreti
+## Incertezze
+...
+```
+
+---
+
+## 13. Workflow: Lint / Health check
+
+Quando l'utente chiede lint o health check:
+
+1. Leggi `wiki/index.md`.
+2. Scansiona tutte le pagine sotto `wiki/`, escluso `presentations/` se non richiesto.
+3. Controlla:
+   - frontmatter mancante o invalido;
+   - pagine non presenti in index;
+   - link rotti;
+   - pagine orfane;
+   - sezioni obbligatorie mancanti;
+   - fonti inesistenti;
+   - duplicati concettuali;
+   - contraddizioni tra pagine;
+   - pagine troppo lunghe da dividere;
+   - pagine `low confidence` senza open questions;
+   - summary senza concept/entity estratti.
+4. Correggi automaticamente problemi meccanici:
+   - index mancante;
+   - link ovvi;
+   - sezioni vuote obbligatorie;
+   - frontmatter incompleto deducibile;
+   - log entry mancante.
+5. Non correggere automaticamente problemi semantici dubbi: crea un report in `wiki/_maintenance/health-check-YYYY-MM-DD.md`.
+6. Aggiorna `wiki/log.md`.
+
+Output finale:
+
+- problemi corretti;
+- problemi lasciati a revisione umana;
+- file modificati;
+- score sintetico della salute della wiki.
+
+---
+
+## 14. Gestione contraddizioni
+
+Quando una nuova fonte contraddice una pagina esistente:
+
+1. Non cancellare automaticamente l'informazione precedente.
+2. Aggiungi o aggiorna una sezione `## Contradictions Or Tensions` nella summary e, se rilevante, nella pagina concept/entity.
+3. Indica le fonti in conflitto.
+4. Abbassa `confidence` se il conflitto impatta la pagina intera.
+5. Imposta `status: needs-review` se serve giudizio umano.
+6. Riporta la contraddizione in `wiki/log.md`.
+
+Formato consigliato:
+
+```md
+## Contradictions Or Tensions
+
+- `raw/fonte-a.md` afferma X, mentre `raw/fonte-b.md` afferma Y.
+  Stato: non risolto.
+  Impatto: ...
+```
+
+---
+
+## 15. Politica sulle fonti
+
+Gerarchia delle fonti:
+
+1. fonti primarie in `raw/`;
+2. pagine summary già create dalla fonte primaria;
+3. documentazione ufficiale o sorgenti esterni verificabili;
+4. note secondarie o interpretazioni;
+5. memoria del modello solo per contesto generale, mai come fonte principale.
+
+Regole:
+
+- Non citare come fatto ciò che non è tracciabile.
+- Se una fonte esterna viene usata per aggiornare la wiki, registra URL e data di accesso nella pagina.
+- Se il contenuto è volatile, annota la data.
+- Se una fonte è obsoleta ma utile storicamente, mantienila e marca il contesto temporale.
+
+---
+
+## 16. Confidenza
+
+Usa questi criteri:
+
+- `high`: più fonti indipendenti concordano, oppure una fonte primaria autorevole è chiara e recente.
+- `medium`: una fonte chiara ma singola, oppure più fonti parziali.
+- `low`: affermazione singola, aneddotica, incompleta, vecchia, ambigua o contraddetta.
+
+Quando aggiorni `confidence`, spiega il motivo nella pagina o nel log.
+
+---
+
+## 17. Tagging
+
+I tag devono essere utili per ritrovare e raggruppare conoscenza.
+
+Regole:
+
+- usa 2-6 tag per pagina;
+- preferisci tag stabili e riutilizzabili;
+- evita sinonimi inutili;
+- se introduci un nuovo tag, usalo intenzionalmente;
+- aggiorna l'index se emergono cluster importanti.
+
+Tassonomia iniziale da personalizzare:
+
+```md
+- Domain: `development`, `architecture`, `ai`, `business`, `research`, `operations`
+- Content type: `pattern`, `tool`, `system`, `decision`, `problem`, `source-summary`
+- Status: `stable`, `emerging`, `speculative`, `needs-review`
+- Scope: `foundational`, `advanced`, `implementation`, `troubleshooting`
+```
+
+---
+
+## 18. Qualità del contenuto
+
+Le pagine devono essere:
+
+- concrete;
+- sintetiche ma complete;
+- orientate al riuso;
+- leggibili da umani e agenti;
+- collegate ad altre pagine;
+- supportate da fonti.
+
+Evita:
+
+- frasi vaghe tipo “è importante” senza spiegare perché;
+- duplicazione di lunghi blocchi della fonte;
+- pagine enciclopediche generiche non collegate al dominio della wiki;
+- liste di bullet senza sintesi;
+- link inseriti solo per quantità.
+
+---
+
+## 19. Regole operative per coding agent
+
+Quando lavori in un repository reale:
+
+1. Prima di modificare file, ispeziona l'albero del progetto.
+2. Se esiste già una struttura `raw/` o `wiki/`, rispettala.
+3. Non creare directory alternative come `docs/wiki` o `knowledge/` salvo richiesta esplicita.
+4. Usa modifiche atomiche: ogni operazione deve lasciare la wiki coerente.
+5. Dopo modifiche massive, esegui un controllo testuale dei link e dei file referenziati se hai strumenti disponibili.
+6. Non cancellare contenuto esistente se non chiaramente duplicato o errato; preferisci integrare e annotare.
+7. Se il comando dell'utente è parziale, fai la migliore azione sicura e registra eventuali assunzioni nel log.
+
+---
+
+## 20. Definition of Done
+
+Un ingest è completo solo se:
+
+- la fonte è stata letta;
+- esiste una summary corrispondente;
+- concept/entity rilevanti sono stati creati o aggiornati;
+- i link bidirezionali principali sono presenti;
+- `wiki/index.md` è aggiornato;
+- `wiki/log.md` contiene una nuova voce;
+- eventuali contraddizioni sono segnalate;
+- l'utente riceve un riepilogo operativo.
+
+Una query è completa solo se:
+
+- la risposta deriva prima dalla wiki;
+- le pagine usate sono citate con wikilink;
+- le incertezze sono esplicitate;
+- non sono state fatte modifiche persistenti non richieste.
+
+Un lint è completo solo se:
+
+- sono stati controllati index, frontmatter, link, fonti, duplicati e sezioni;
+- i fix meccanici sono stati applicati;
+- i problemi semantici sono stati riportati;
+- il log è aggiornato.
+
+---
+
+## 21. Esempi di comportamento corretto
+
+### Esempio ingest
+
+Utente:
+
+```text
+ingest raw/articles/rag-vs-long-context.md
+```
+
+Agente:
+
+1. legge la fonte;
+2. crea `wiki/summaries/rag-vs-long-context.md`;
+3. aggiorna o crea `wiki/concepts/retrieval-augmented-generation.md`;
+4. aggiorna o crea `wiki/concepts/long-context.md`;
+5. crea link incrociati;
+6. aggiorna index e log;
+7. risponde con elenco file creati/aggiornati.
+
+### Esempio query
+
+Utente:
+
+```text
+Che differenza c'è tra RAG e LLM Wiki?
+```
+
+Agente:
+
+1. legge index;
+2. legge le pagine pertinenti;
+3. risponde citando `[[concepts/retrieval-augmented-generation]]`, `[[concepts/llm-wiki]]` e le summary usate;
+4. non crea file a meno che l'utente chieda di salvare la sintesi.
+
+### Esempio lint
+
+Utente:
+
+```text
+lint
+```
+
+Agente:
+
+1. controlla tutta la wiki;
+2. corregge link e index mancanti;
+3. crea `wiki/_maintenance/health-check-YYYY-MM-DD.md` se ci sono problemi non banali;
+4. aggiorna log;
+5. restituisce report sintetico.
