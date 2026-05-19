@@ -8,7 +8,7 @@ updated: 2026-05-19
 
 ## Scope
 
-Operational catalog for the LLM Wiki. Use this file first to discover existing wiki pages before reading raw sources or creating new pages.
+Operational catalog for the LLM Wiki. Use this file first to discover existing wiki pages before reading raw sources or creating new pages. Every page in the wiki must have an entry here
 
 ## Recently Updated
 
@@ -43,9 +43,9 @@ Operational catalog for the LLM Wiki. Use this file first to discover existing w
 
 ## Open Questions
 
-- Which source in `raw/` should be ingested first?
+- Nessuna voce
 
 ## Maintenance Backlog
 
-- Ingest the first real raw source and replace placeholder rows with concrete entries.
-- Run a health check after the first ingest to verify frontmatter, links, sources, and index coverage.
+- Nessuna voce
+
