@@ -12,16 +12,16 @@ Operational catalog for the LLM Wiki. Use this file first to discover existing w
 
 ## Recently Updated
 
-| Page       | Type | Updated | Notes                              |
-| ---------- | ---- | ------- | ---------------------------------- |
-| _None yet_ |      |         | No raw sources have been ingested. |
-
+| Page | Type | Updated | Notes |
+|---|---|---|---|
+| [[overview]] | maintenance | 2026-05-19 | Empty baseline and operating model. |
+| [[log]] | log | 2026-05-19 | Baseline setup record. |
 
 ## Summaries
 
-| Page       | Source | Updated | Confidence | Notes                              |
-| ---------- | ------ | ------- | ---------- | ---------------------------------- |
-| _None yet_ |        |         |            | No raw sources have been ingested. |
+| Page | Source | Updated | Confidence | Notes |
+|---|---|---|---|---|
+| _None yet_ | | | | No raw sources have been ingested. |
 
 ## Concepts
 
@@ -43,9 +43,8 @@ Operational catalog for the LLM Wiki. Use this file first to discover existing w
 
 ## Open Questions
 
-- Nessuna voce
+- Which source in `raw/` should be ingested first?
 
 ## Maintenance Backlog
 
-- Nessuna voce
-
+- Ingest the first real raw source and replace placeholder rows with concrete entries.

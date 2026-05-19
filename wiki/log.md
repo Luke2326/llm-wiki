@@ -5,26 +5,26 @@ type: log
 
 # Activity Log
 
-Append-only record of wiki changes.
+Append-only record of wiki changes from this clean baseline onward.
 
-## 2026-04-08 00:00 — setup
+## 2026-05-19 02:02 — baseline-setup
 
-- Trigger: repository initialized
+- Trigger: repository aligned to current `AGENTS.md` before first source ingest
 - Sources read:
-  - none
+  - AGENTS.md
 - Pages created:
   - wiki/index.md
   - wiki/log.md
-  - wiki/dashboard.md
-  - wiki/analytics.md
-  - wiki/flashcards.md
+  - wiki/overview.md
+  - wiki/_maintenance/.gitkeep
 - Pages updated:
-  - none
+  - README.md
+  - .gitignore
 - Contradictions found:
   - none
 - Open questions:
-  - none
+  - Which raw source should be ingested first?
 - Notes:
-  - Empty knowledge base ready for first source ingestion.
-
-
+  - The wiki starts empty: no summaries, concepts, entities, syntheses, journal entries, or presentations have been ingested.
+  - Obsolete placeholder pages from the previous template are intentionally absent.
+  - `raw/` was not modified.
