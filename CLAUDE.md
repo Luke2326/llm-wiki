@@ -449,22 +449,88 @@ Non incollare l'intero contenuto delle pagine create, salvo richiesta esplicita.
 
 ---
 
-## 12. Workflow: Query
+## 12. Workflow: Query ottimizzato
 
-Quando l'utente fa una domanda:
+Quando l'utente fa una domanda, l'agente deve trattarla come una ricerca guidata dentro la wiki, non come una risposta generata dalla memoria del modello.
+
+### 12.1 Regola principale
+
+La prima operazione obbligatoria è sempre leggere `wiki/index.md`.
+
+`wiki/index.md` è la mappa operativa della knowledge base. Serve a:
+
+- capire quali pagine esistono;
+- evitare letture casuali o duplicate;
+- trovare rapidamente concept, entity, summary e synthesis rilevanti;
+- verificare se la domanda è già coperta dalla wiki;
+- capire quali fonti grezze possono essere necessarie solo in seconda battuta.
+
+Non rispondere mai a una query dell'utente senza aver prima controllato `wiki/index.md`, salvo il caso in cui il file non esista. Se `wiki/index.md` non esiste, segnala il problema e fai una scansione minima della directory `wiki/` per ricostruire il contesto.
+
+### 12.2 Algoritmo obbligatorio per ogni query
 
 1. Leggi `wiki/index.md`.
-2. Identifica pagine candidate.
-3. Leggi le pagine candidate.
-4. Se la wiki è insufficiente, leggi le fonti in `raw/` citate dalle pagine candidate.
-5. Rispondi citando le pagine wiki usate con wikilink.
-6. Distingui chiaramente:
+2. Estrai dalla domanda:
+   - argomento principale;
+   - concetti citati;
+   - entità citate;
+   - vincoli temporali;
+   - intento dell'utente: spiegazione, confronto, decisione, troubleshooting, riepilogo, ricerca puntuale.
+3. Usa `wiki/index.md` per identificare le pagine candidate più rilevanti.
+4. Dai priorità di lettura in questo ordine:
+   1. `wiki/syntheses/` se la domanda è comparativa, decisionale o trasversale;
+   2. `wiki/concepts/` se la domanda riguarda idee, pattern, strategie o problemi;
+   3. `wiki/entities/` se la domanda riguarda strumenti, persone, prodotti, sistemi, repository o organizzazioni;
+   4. `wiki/summaries/` se serve tornare alla fonte sintetizzata;
+   5. `raw/` solo se la wiki è incompleta, ambigua o se servono dettagli non presenti nelle pagine wiki.
+5. Leggi solo le pagine candidate necessarie, ma abbastanza da rispondere con precisione.
+6. Se le pagine candidate rimandano ad altre pagine con wikilink rilevanti, segui quei link finché migliorano la risposta.
+7. Rispondi citando le pagine wiki usate con wikilink.
+8. Distingui chiaramente:
    - cosa è supportato dalla wiki;
-   - cosa è inferenza;
-   - cosa manca o è incerto.
-7. Non modificare file durante una query semplice, a meno che l'utente chieda di salvare la sintesi o la query riveli un problema di manutenzione critico.
+   - cosa è inferenza ragionata;
+   - cosa manca;
+   - cosa è incerto o contraddittorio.
+9. Non modificare file durante una query semplice, a meno che l'utente chieda esplicitamente di salvare, aggiornare o creare una sintesi persistente.
 
-Formato risposta consigliato:
+### 12.3 Strategia di ricerca dentro l'index
+
+Quando leggi `wiki/index.md`, cerca corrispondenze in questo ordine:
+
+1. match esatto del termine dell'utente nei titoli;
+2. match di sinonimi o varianti nello stesso dominio;
+3. match nei tag;
+4. match nelle descrizioni one-line;
+5. match nelle open questions o nel maintenance backlog;
+6. pagine recentemente aggiornate, solo se semanticamente pertinenti.
+
+Non scegliere una pagina solo perché è recente. La pertinenza semantica viene prima della recenza.
+
+### 12.4 Query con risposta insufficiente
+
+Se dopo aver letto index e pagine candidate la risposta non è completa:
+
+1. dichiara cosa è stato trovato nella wiki;
+2. indica cosa manca;
+3. leggi le fonti `raw/` citate dalle pagine candidate, se possono colmare il gap;
+4. se anche le fonti non bastano, rispondi esplicitando il limite;
+5. suggerisci quali fonti aggiungere o quale ingest fare per migliorare la wiki.
+
+Non inventare dettagli mancanti per chiudere la risposta.
+
+### 12.5 Quando creare una synthesis da una query
+
+Crea o aggiorna una pagina in `wiki/syntheses/` solo quando almeno una di queste condizioni è vera:
+
+- l'utente chiede esplicitamente di salvare la sintesi;
+- la domanda richiede un confronto riutilizzabile;
+- la risposta produce una decision matrix o un framework ricorrente;
+- emergono relazioni importanti tra più concept/entity;
+- la stessa domanda potrebbe essere utile in futuro come pagina autonoma.
+
+Se l'utente ha fatto una domanda semplice, non creare file persistenti.
+
+### 12.6 Formato risposta consigliato
 
 ```md
 ## Risposta
@@ -472,13 +538,29 @@ Formato risposta consigliato:
 ...
 
 ## Evidenza usata
+- [[syntheses/...]]
 - [[concepts/...]]
 - [[entities/...]]
 - [[summaries/...]]
 
-## Incertezze
+## Inferenze
+
+...
+
+## Mancanze o incertezze
+
 ...
 ```
+
+### 12.7 Errori da evitare nelle query
+
+- Rispondere dalla memoria del modello senza consultare `wiki/index.md`.
+- Cercare direttamente in `raw/` prima di aver letto l'index.
+- Leggere troppe pagine non pertinenti invece di usare l'index come filtro.
+- Citare fonti grezze quando esiste già una summary più adatta.
+- Creare una synthesis per ogni domanda.
+- Nascondere incertezze, contraddizioni o assenza di fonti.
+- Usare link wiki non letti direttamente come se fossero evidenza verificata.
 
 ---
 
@@ -645,8 +727,11 @@ Un ingest è completo solo se:
 
 Una query è completa solo se:
 
-- la risposta deriva prima dalla wiki;
+- `wiki/index.md` è stato controllato per primo;
+- le pagine candidate sono state scelte a partire dall'index;
+- la risposta deriva prima dalla wiki e solo dopo da `raw/` se necessario;
 - le pagine usate sono citate con wikilink;
+- le inferenze sono separate dai fatti supportati;
 - le incertezze sono esplicitate;
 - non sono state fatte modifiche persistenti non richieste.
 

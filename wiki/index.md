@@ -1,45 +1,51 @@
 ---
-title: "Knowledge Base Index"
+title: "Wiki Index"
 type: index
-updated: 2026-04-08
+updated: 2026-05-19
 ---
 
-# Knowledge Base Index
+# Wiki Index
 
-Master catalog of all wiki pages. Every page in the wiki must have an entry here.
+## Scope
 
-## Concepts
+Operational catalog for the LLM Wiki. Use this file first to discover existing wiki pages before reading raw sources or creating new pages.
 
-| Page | Tags | Confidence | Updated |
-|------|------|------------|---------|
-| <!-- entries added by LLM during ingest --> | | | |
+## Recently Updated
 
-## Entities
+| Page       | Type | Updated | Notes                              |
+| ---------- | ---- | ------- | ---------------------------------- |
+| _None yet_ |      |         | No raw sources have been ingested. |
 
-| Page | Tags | Updated |
-|------|------|---------|
-| <!-- entries added by LLM during ingest --> | | |
 
 ## Summaries
 
-| Page | Source | Key Topics | Created |
-|------|--------|------------|---------|
-| <!-- entries added by LLM during ingest --> | | | |
+| Page       | Source | Updated | Confidence | Notes                              |
+| ---------- | ------ | ------- | ---------- | ---------------------------------- |
+| _None yet_ |        |         |            | No raw sources have been ingested. |
+
+## Concepts
+
+| Page | Tags | Updated | Confidence | One-line Description |
+|---|---|---|---|---|
+| _None yet_ | | | | No concepts have been extracted yet. |
+
+## Entities
+
+| Page | Tags | Updated | Confidence | One-line Description |
+|---|---|---|---|---|
+| _None yet_ | | | | No entities have been extracted yet. |
 
 ## Syntheses
 
-| Page | Pages Compared | Created |
-|------|----------------|---------|
-| <!-- entries added by LLM during ingest --> | | |
+| Page | Question/Decision | Updated | Confidence | Notes |
+|---|---|---|---|---|
+| _None yet_ | | | | No syntheses have been created yet. |
 
-## Statistics
+## Open Questions
 
-- **Total pages**: 0
-- **Concepts**: 0
-- **Entities**: 0
-- **Summaries**: 0
-- **Syntheses**: 0
-- **Sources ingested**: 0
-- **High confidence**: 0
-- **Medium confidence**: 0
-- **Low confidence**: 0
+- Which source in `raw/` should be ingested first?
+
+## Maintenance Backlog
+
+- Ingest the first real raw source and replace placeholder rows with concrete entries.
+- Run a health check after the first ingest to verify frontmatter, links, sources, and index coverage.
